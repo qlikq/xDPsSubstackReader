@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="733" height="20" viewBox="0 0 733 20" role="img" font-family="Verdana, sans-serif" font-size="11" text-anchor="middle" fill="#fff">
+  <title>ModuleBuilder v3.2.18 passing, Pester v6.2.0 14/14 passed, Authenticode signed by xDlabs, PowerShell 7.6, MIT license</title>
+  <clipPath id="badge-0"><rect x="0" width="194" height="20" rx="3"/></clipPath>
+  <g clip-path="url(#badge-0)">
+    <rect x="0" width="194" height="20" fill="#555"/>
+    <rect x="89" width="105" height="20" fill="#22c55e"/>
+    <text x="44.5" y="14">ModuleBuilder</text>
+    <text x="141.5" y="14">v3.2.18 Passing</text>
+  </g>
+  <clipPath id="badge-1"><rect x="199" width="161" height="20" rx="3"/></clipPath>
+  <g clip-path="url(#badge-1)">
+    <rect x="199" width="161" height="20" fill="#555"/>
+    <rect x="277" width="83" height="20" fill="#22c55e"/>
+    <text x="238" y="14">Pester v6.2.0</text>
+    <text x="318.5" y="14">14/14 Passed</text>
+  </g>
+  <clipPath id="badge-2"><rect x="365" width="182" height="20" rx="3"/></clipPath>
+  <g clip-path="url(#badge-2)">
+    <rect x="365" width="182" height="20" fill="#555"/>
+    <rect x="448" width="99" height="20" fill="#22c55e"/>
+    <text x="406.5" y="14">Authenticode</text>
+    <text x="497.5" y="14">Signed (xDlabs)</text>
+  </g>
+  <clipPath id="badge-3"><rect x="552" width="97" height="20" rx="3"/></clipPath>
+  <g clip-path="url(#badge-3)">
+    <rect x="552" width="97" height="20" fill="#555"/>
+    <rect x="620" width="29" height="20" fill="#06b6d4"/>
+    <text x="586" y="14">PowerShell</text>
+    <text x="634.5" y="14">7.6</text>
+  </g>
+  <clipPath id="badge-4"><rect x="654" width="79" height="20" rx="3"/></clipPath>
+  <g clip-path="url(#badge-4)">
+    <rect x="654" width="79" height="20" fill="#555"/>
+    <rect x="702" width="31" height="20" fill="#3b82f6"/>
+    <text x="678" y="14">License</text>
+    <text x="717.5" y="14">MIT</text>
+  </g>
+</svg>
