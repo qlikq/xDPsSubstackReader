@@ -1,6 +1,6 @@
 # xDlabs.SubStackReader
 
-![ModuleBuilder v3.2.18 passing, Pester v6.2.0 14/14 passed, Authenticode signed by xDlabs, PowerShell 7.6, MIT license](xDlabs.SubStackReader/Assets/readme-badges.svg)
+![ModuleBuilder v3.2.18 passing, Pester v6.2.0 18/18 passed, Authenticode signed by xDlabs, PowerShell 7.6, MIT license](xDlabs.SubStackReader/Assets/readme-badges.svg)
 
 <!-- project-intro -->
 ```text
@@ -19,7 +19,7 @@ The terminal interface uses [PSTui 1.0.5](https://github.com/tui-cs/PSTui) and T
 <!-- /project-intro -->
 
 <!-- release-version -->
-Current version: **1.0.1**.
+Current version: **1.0.2**.
 <!-- /release-version -->
 
 ## Install
@@ -44,7 +44,7 @@ Show-Substack -Name 'PowerShell.News' -NoAudio
 - Type `Show-Substack -Name ` and press **Tab** to complete a name from your favorites.
 - Focus starts in the favorites pane on the right. Use **↑/↓** to select a publication and **Enter** to load it. Press **Enter** on the same favorite again to refresh its posts.
 - **Tab** moves between panes. Press **Enter** on a post to focus its scrollable preview. Press **O** to open the post in your browser or to visit the publication if its feed is empty.
-- The reader displays public RSS content or excerpts. If the feed is empty, it checks Substack’s undocumented public archive. Refreshing is manual.
+- The reader combines public RSS entries with Substack’s undocumented public archive, so posts that have reached the archive can appear before they reach RSS. Refreshing is manual.
 
 xDlabs (`igregui.substack.com`) is pinned at the top and opens by default. Other starter favorites include Home Lab Weekly, PowerShell.News, Bite Code!, The Pragmatic Engineer, Platformer, and Boiling The Ocean.
 

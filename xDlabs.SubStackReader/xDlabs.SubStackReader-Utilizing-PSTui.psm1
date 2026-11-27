@@ -102,13 +102,15 @@ function Get-SubstackArchive {
         [pscustomobject]@{
             Title = (ConvertFrom-FeedHtml $entry.title) -replace '\s+', ' '
             Url = $link.AbsoluteUri
-            Published = [string]$entry.post_date
+            Published = if ($entry.post_date -is [datetime] -or $entry.post_date -is [datetimeoffset]) {
+                $entry.post_date.ToString('o')
+            } else { [string]$entry.post_date }
             Text = ConvertFrom-FeedHtml $entry.subtitle
             DetailsUrl = $detailsUrl
         }
     }
 }
-#EndRegion '.\Private\Get-SubstackArchive.ps1' 24
+#EndRegion '.\Private\Get-SubstackArchive.ps1' 26
 #Region '.\Private\Get-SubstackPostPreview.ps1' -1
 
 function Get-SubstackPostPreview {
@@ -145,12 +147,8 @@ function Get-SubstackPosts {
     }
     if (-not $feed.SelectSingleNode('/rss/channel')) { throw 'The publication did not return an RSS feed.' }
 
-    $items = $feed.SelectNodes('/rss/channel/item')
-    if ($items.Count -eq 0) {
-        Get-SubstackArchive $Url
-        return
-    }
-    foreach ($item in $items) {
+    $posts = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+    foreach ($item in $feed.SelectNodes('/rss/channel/item')) {
         $link = $null
         if (-not [uri]::TryCreate($item.SelectSingleNode('link').InnerText, 'Absolute', [ref]$link) -or
             $link.Scheme -ne 'https' -or $link.UserInfo) { continue }
@@ -158,15 +156,33 @@ function Get-SubstackPosts {
         $body = $item.SelectSingleNode("*[local-name()='encoded' and namespace-uri()='http://purl.org/rss/1.0/modules/content/']")
         if (-not $body) { $body = $item.SelectSingleNode('description') }
         $title = (ConvertFrom-FeedHtml ($item.SelectSingleNode('title').InnerText)) -replace '\s+', ' '
-        [pscustomobject]@{
+        $key = $link.GetLeftPart('Path').TrimEnd('/')
+        $posts[$key] = [pscustomobject]@{
             Title = $title
             Url = $link.AbsoluteUri
             Published = $item.SelectSingleNode('pubDate').InnerText
             Text = ConvertFrom-FeedHtml $body.InnerText
         }
     }
+
+    try {
+        foreach ($post in Get-SubstackArchive $Url) {
+            $key = ([uri]$post.Url).GetLeftPart('Path').TrimEnd('/')
+            [void]$posts.TryAdd($key, $post)
+        }
+    } catch {
+        if ($posts.Count -eq 0) { throw }
+        Write-Verbose "Could not refresh the archive for $Url. $($_.Exception.Message)"
+    }
+
+    $posts.Values | Sort-Object -Stable -Descending -Property {
+        $date = [DateTimeOffset]::MinValue
+        [void][DateTimeOffset]::TryParse($_.Published, [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::AssumeUniversal, [ref]$date)
+        $date
+    }
 }
-#EndRegion '.\Private\Get-SubstackPosts.ps1' 40
+#EndRegion '.\Private\Get-SubstackPosts.ps1' 54
 #Region '.\Private\Import-SubstackTui.ps1' -1
 
 function Import-SubstackTui {
@@ -727,8 +743,8 @@ function Show-Substack {
 # SIG # Begin signature block
 # MIIodAYJKoZIhvcNAQcCoIIoZTCCKGECAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDlt47YYC1oRLaw
-# +oRugJcQ5quyTbMziCXULgOL/VAhP6CCIKgwggXJMIIEsaADAgECAhAbtY8lKt8j
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCZK4+8iHPPvqak
+# 4gg1LyE8KE7ScN7c1KYN+DqQGmzOcqCCIKgwggXJMIIEsaADAgECAhAbtY8lKt8j
 # AEkoya49fu0nMA0GCSqGSIb3DQEBDAUAMH4xCzAJBgNVBAYTAlBMMSIwIAYDVQQK
 # ExlVbml6ZXRvIFRlY2hub2xvZ2llcyBTLkEuMScwJQYDVQQLEx5DZXJ0dW0gQ2Vy
 # dGlmaWNhdGlvbiBBdXRob3JpdHkxIjAgBgNVBAMTGUNlcnR1bSBUcnVzdGVkIE5l
@@ -907,38 +923,38 @@ function Show-Substack {
 # LjEkMCIGA1UEAxMbQ2VydHVtIENvZGUgU2lnbmluZyAyMDIxIENBAhAQ7yoo28QR
 # 5HwedXcMLxfmMA0GCWCGSAFlAwQCAQUAoIGEMBgGCisGAQQBgjcCAQwxCjAIoAKA
 # AKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIBCzEO
-# MAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEIM/9eLPhukL7KbMJXOXmqBj5
-# MVEbk/Z78vQbQcZUbz9tMA0GCSqGSIb3DQEBAQUABIICAB1RQGoIWVz+aER981jr
-# LAanvio/iUmYiaBt4g1PYAoWUjdDVkpqpvxR0366e334qRY34xSqPftdrWrmX9AE
-# ymPAhkGm/u42NCwANvrDDSIrn3AA6qWvRYjaNEi9c4Nv/r328E5LAJUlQ4kyoc/h
-# hlTFcr1ln7M1Je6D4Z04QjGavoUrkE8faNw1DYO31B9Yd9S3Zsjm1gcwu0EeToht
-# mxaLDMjsScqHneTceyPZ6RmVSMLFtJmisNnPcS2udDAcw2s72XVjiZqEIA8nLDCI
-# RuiD1wr97cPMEp9mFVwbjs7gbgkcL86Ajy8l7NpJsleVsyJzzQY2Qhkqh6+n2c1V
-# +5H53mJzRuECVPrcS00Cm4uG/cILYJDN1Ow5AZKmMHgjACam3OJY6ZSLjDufw4cM
-# dRL/obMTcctKQoFU1V/2id3Xe8hGw+AMaI8UZ1AHNbwp8hVgM0uwIUWaPcIGcGxj
-# 7FLCupjze0t/Ek0cVJTvre9acZD79ODuMFpojQ46626v5aEi84qIKDN1qbhfPcze
-# iuKheJDTWtmy5VuxPcAzpCvcx0k29hqDQflY6nL8BgcXAkFoXmFavI6VrQMFqQmi
-# 96aNgy6kMg5wSYo7/cOZ2EAW6bSEXYiwARBStNOCnVfwjjavtwligM1D6Hf4ynwJ
-# lwh8dzw6UiDRQi8fvc9f7XSEoYIEAjCCA/4GCSqGSIb3DQEJBjGCA+8wggPrAgEB
+# MAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEID5UPmHDG3mMjIQiX68CupUs
+# dd/xPcaDbHnhGnv8l03XMA0GCSqGSIb3DQEBAQUABIICADt6KKZ8wvn1nnG9gNEB
+# jmBcCiK7GCB9YBHOug1XSN7BzPXXeqO68HFmG/5CnmBzROTbxF0a5Y3hzvg2lHUq
+# GFgbAcGnvuYVa9Ga45MKQlJxJpnbC0foDnCxyppi6uKa4tKwNN7viNoajZLcRQzi
+# YaDvm1q1dGNFx9Qa0kPBrAyOUG6eyqJvMVDnJxzCDB2Aa6JYwtSwN4eP/iLwIydj
+# 6C/bA4j8hl2rbI8BGsywwJzh5/t/Szqnm/pLqaY04p5OWq9OMFMqZFZwkOvgmxs4
+# Dkj2KeE/t1s1OyfE2Y0LICHsJxzbV2m1oG6+SR20ZdEq4YdXupmso+2d1bhzjDI1
+# sHLePG9oz3NxMlZAaFjB2TRAfjIzv8tYKGreiWGGVuwoPO5fM2l+fbyPgSE/Bsrh
+# KxOs9IxOrAiRA36bzoZdyWQcUAPp0bAxcgD6r+TSoLeEgWua6v0ipHJ5YVqIsqwz
+# yQ0ZC9Fj9cT7GV6488XWPIRtwaOo/5n0+v8OZqw6z+BgUZKh+Tja6HrODLPzqgHk
+# VNDADtavkxH0H7ZuqD7RxBgqXdGoXxheKgI5L2yHgF2D7x3+7cp8pWXSapCo/6ni
+# ebAIxQ0Nx16IX6aqnr3kOq34ka8rKuSdVQUtGiHAxnFSj+41WyNdEPgmm6nJ0wJ7
+# y95qy27u+3OCcz7fKzqcEZIaoYIEAjCCA/4GCSqGSIb3DQEJBjGCA+8wggPrAgEB
 # MGowVjELMAkGA1UEBhMCUEwxITAfBgNVBAoTGEFzc2VjbyBEYXRhIFN5c3RlbXMg
 # Uy5BLjEkMCIGA1UEAxMbQ2VydHVtIFRpbWVzdGFtcGluZyAyMDIxIENBAhAo8HfB
 # HDa9/l90MkdwJy4DMA0GCWCGSAFlAwQCAgUAoIIBVjAaBgkqhkiG9w0BCQMxDQYL
-# KoZIhvcNAQkQAQQwHAYJKoZIhvcNAQkFMQ8XDTI2MTEyNzAwMjcxNlowNwYLKoZI
+# KoZIhvcNAQkQAQQwHAYJKoZIhvcNAQkFMQ8XDTI2MTEyNzAwNTcyNlowNwYLKoZI
 # hvcNAQkQAi8xKDAmMCQwIgQghb6Q4QrSQ418ySi2r0iwmrIIF3zs+LASbFjTkQUl
-# xDwwPwYJKoZIhvcNAQkEMTIEMDDoW7c5mZLMKKDb8ZQ3FqbyIG4a0meNvriqOWXv
-# YeQzds4bgo0H9qGq6nZ01lKfIzCBnwYLKoZIhvcNAQkQAgwxgY8wgYwwgYkwgYYE
+# xDwwPwYJKoZIhvcNAQkEMTIEMKRDguGAIiBHATSmGyn/y12eb+IoLR1Qbiz6PnUK
+# tqDzHbyIUvY+s40jJA3C4MvIpjCBnwYLKoZIhvcNAQkQAgwxgY8wgYwwgYkwgYYE
 # FFcUaEEMqFrzQk75FkpRNhD0042YMG4wWqRYMFYxCzAJBgNVBAYTAlBMMSEwHwYD
 # VQQKExhBc3NlY28gRGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBU
 # aW1lc3RhbXBpbmcgMjAyMSBDQQIQKPB3wRw2vf5fdDJHcCcuAzANBgkqhkiG9w0B
-# AQEFAASCAgChhrF3LXGxJOJFN23PF55Hy+DfDM8bZRJDdz46yOQjJhz6yT1EP/hL
-# ySOZYNrzkDVkq+aLjO924JWQptPAHtPjRXzAykfY2z8Mxbi4xgy5sjFzPG2E297f
-# f828IYU3IhDAeegrLyzGt/f8o7SjbTPoYWyuZ4fE/Qnd74p69pFklw8vkm2dPsk5
-# NxdUt9hLR307/Fo6w16lVejbcnqN/N1cJwQ9/QNCh9+wrmEvmvdARuQf4R77CY+G
-# tH0UDy4IO8nWzKJ+q6kpVQVisYooM518+F3BB8veEHH3GoRMwQ1kmVn1DrwKpQfL
-# ynGc05167/eMBdESmz8VzVu/EbLXodR6b9+flRwNAl4sDv+ywGs2xiyTcSNJqgrf
-# oSKdwIe0Scc9z0vBjIVKO2d5ysIYqypn1TfNqj/iXlR33J/No/3vRWjxrf8JCf2A
-# Hd/60xjMfaXI95JrKuddnF3b4Lo8aeTwlYsgpriMP5oAFNGVBgs7d/2HWVManUkB
-# mZeeIh+rR8WbBclaVomZylmSi8OQgMXvQvw2LHwKePXShUf2wFZKsPkcc7wexuJo
-# OJcgSvqcCLxW5mw6D6g65u8Is8qLnKhYY8wd+kFdtF2sSDzXXRrb4ZwQxSZKsJeN
-# 6wr502YXW62J26rQjI+9DSo5fJOWn2XhfgEkM1F0lHa5fL5uRsIuNw==
+# AQEFAASCAgCumr9w8LbXSjkSTb7ZkGVjmznyYV6DxXW0Ycl/094kT/r70BQDLe6D
+# Hx9b9xq7nzEIPbKqE4rrbSp2ibD2ei9/OkaPv/iOyQA2+04dGVwkSmWbDRPaCQAp
+# knXjrYriO1YF7LCr2p4kgHLhDaj7DgvcqPNgIScNokuurau8GLDYpwgN09hXmcbB
+# bbbG3wFt/69cj3GakfbIRt5i+GfCYptwzJfeUq209DqomXGau7duyQXoshqA/dDu
+# l44a4lkmzn7tuVBx9dqV/Ygc5CKGmFk6jZmR0cUag+d1Pjv7/xxyf+EFf6snet/p
+# ZWURJrga2DmnKqOSmg8M/QozkvbbAC1DJllxhyGDSL0KDSdty6vMHtcpOh+epQWJ
+# JjEEUiTWOhP5SZhiCO00wUuX6pjnkMXFNnWUkb7bgOM+cWQ+MgLSvBLfvfAmiQLr
+# XmFqEHwTGa9Dxa1HcPo08H5W79qGoIhGT4x+UnjkhXkCRZDsdUoYT7AzkHG3gOnm
+# x089s6XPGHg9JUT6ynx8MCLYbd1aLDWRJDTj9AG76U+RuYihRwecEy9g3AO2RPt2
+# C9O23h4wvuUnU5rPsFQER4oUfWBD5890kO8whRZHzANDOjcxm7qteIX4EeaKuC4H
+# PJcIKHQa2NsWiOwEhlSjUHO59fX2PAkCA1KWDaaXW3jwQOz1RFqxgw==
 # SIG # End signature block
